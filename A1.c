@@ -1,8 +1,9 @@
-Write a program to implement I pass assembler.
+
 
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
+#include<ctype.h>
 
 struct MOTtable
   {
@@ -97,12 +98,15 @@ void EQU();			//handle EQU  directive
 int tokencount; 	//total number of words in a statement
 
 int main()
- {
+ {	
+ 	printf("Write a program to implement I pass assembler.");
 	char file1[40],nextline[80];
 	int len,i,j,var,index1;
 	FILE *ptr1;
 	printf("\nEnter Source file name:");
+
         gets(file1);
+        printf("PASS A");
 	ptr1=fopen(file1,"r");
 	while(!feof(ptr1))
 	  {
@@ -386,5 +390,5 @@ void print_opcode()
 
   }
 
-/*
+
 
