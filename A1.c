@@ -1,5 +1,3 @@
-
-
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -56,7 +54,7 @@ int LC=0;    //Location counter
 int iLT=0;   //Index of next entry in Literal Table
 int iST=0;   //Index of next entry in Symbol Table
 int iIC=0;   //Index of next entry in intermediate code table
-int cnt=0;   //line number
+int ln=0;   //line number
 
 int searchST(char symbol[])
    {
@@ -83,18 +81,134 @@ int insertST( char symbol[],int address,int size)
        iST++;
        return (iST-1);
 }
-void imperative(); 	//Handle an executable statement
-void declaration();	//Handle a declaration statement
-void directive();	 	//Handle an assembler directive
-void print_symbol();	//Display symbol table
-void print_opcode(); 	//Display opcode table
-void intermediate(); 	//Display intermediate code
+
+void declaration()
+{
+   if(strcmp(s1,"DC")==0)
+     {
+		DC();
+		return;
+     }
+   if(strcmp(s1,"DS")==0)
+		DS();
+}
+
+void directive()
+{
+   	 if(strcmp(s1,"START")==0)
+       	{
+	  	START();
+	  	return;
+      	 }
+   	 if(strcmp(s1,"EQU")==0)
+    	{
+	 	EQU();
+	  return;
+	 }
+	 if(strcmp(s1,"ORIGIN")==0)
+	 	ORIGIN();
+
+}
+
+void print_symbol()
+ {
+	int i;
+	printf("\n--------------SYMBOL TABLE--------------\n");
+	for(i=0;i<iST;i++)
+		printf("\n%10s  %3d  ",ST[i].Symbol,ST[i].Address);
+}
+
+void print_opcode()
+  {
+	int i;
+	printf("\n------------OPCODE TABLE------------");
+	for(i=0;i<nMOT;i++)
+		if(MOT[i].Class==1)
+		       printf("\n%6s   %2s",MOT[i].Mnemonic,MOT[i].Opcode);
+
+  }
+
+
 char s1[8],s2[8],s3[8],label[8];
-void DC(); 		//Handle declaration statement DC
-void DS(); 		//Handle declaration statement DS
-void START();		//Handle START directive
-void ORIGIN();    //handle ORIGIN directive
-void EQU();			//handle EQU  directive
+void DC()
+{
+	int index;
+	index=searchMOT(s1);
+	IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0;	
+	IC[iIC].LC=LC;
+	IC[iIC].Code1=index;
+	IC[iIC].Type1=MOT[index].Class;
+	IC[iIC].Type2=6;        		//Constant
+	IC[iIC].Code2=atoi(s2);
+	index=searchST(label);
+	if(index==-1)
+		index=insertST(label,0,0);
+	ST[index].Address=LC;
+	ST[index].Size=1;
+	LC=LC+1;
+	iIC++;
+}
+void DS()
+{
+	int index;
+	index=searchMOT(s1);
+	IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0;	
+	IC[iIC].Code1=index;
+	IC[iIC].Type1=MOT[index].Class;
+	IC[iIC].Type2=6;       	
+	IC[iIC].Code2=atoi(s2);
+	index=searchST(label);
+	if(index==-1)
+		index=insertST(label,0,0);
+	ST[index].Address=LC;
+	ST[index].Size=atoi(s2);
+	LC=LC+atoi(s2);
+	iIC++;
+}
+void START()
+{
+  int index;
+  index=searchMOT(s1);
+  IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0; 		
+  IC[iIC].LC=LC;
+  IC[iIC].Code1=index;
+  IC[iIC].Type1=MOT[index].Class;
+  IC[iIC].Type2=6;       		 
+  IC[iIC].Code2=atoi(s2);
+  LC=atoi(s2);
+  iIC++;
+}
+void ORIGIN()
+{
+	char *p=NULL;
+	int add,index;	
+	index=searchMOT(s1);
+    	IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0;	 
+    	IC[iIC].LC=LC;
+    	IC[iIC].Code1=index;
+    	IC[iIC].Type1=MOT[index].Class;
+	p=strtok(s2,"+");
+	index=searchST(p);
+	add=ST[index].Address;
+	 LC=add+atoi(s3);
+	iIC++;	
+}
+void EQU()
+{
+	int i1,i2,add, index;
+  	index=searchMOT(s1);
+	IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0; 		
+	 IC[iIC].LC=LC;
+  	IC[iIC].Code1=index;
+  	IC[iIC].Type1=MOT[index].Class;
+	i1=searchST(s2);
+	IC[iIC].Code2=i1;
+	IC[iIC].Type2=7; 		
+	i2=searchST(label);
+	ST[i2].Address=add;
+	iIC++;
+	LC=LC+1;
+}
 int tokencount; 	//total number of words in a statement
 
 int main()
@@ -113,7 +227,7 @@ int main()
 		//Read a line of assembly program and remove special characters
 		i=0;
 		nextline[i]=fgetc(ptr1);
-		cnt++;
+		ln++;
 		while(nextline[i]!='\n'&& nextline[i]!=EOF )
 		    {
 				if(!isalnum(nextline[i]))	
@@ -126,8 +240,8 @@ int main()
 				nextline[i]=fgetc(ptr1);
 		    }
 		nextline[i]='\0';
- 		//if the nextline is an END statement
-		sscanf(nextline,"%s",s1);		 //read from the nextline in s1
+ 	
+		sscanf(nextline,"%s",s1);		 //read from buffer
 		if(strcmp(s1,"END")==0)
 		      break;
 		//if the nextline contains a label
@@ -135,6 +249,8 @@ int main()
 		 {
  			//separate opcode and operands
 			tokencount=sscanf(nextline,"%s%s%s%s",label,s1,s2,s3);
+			printf("\n TOKEN VERIFICATION \n TokenCount:%d END  \n",tokencount);
+			
 			if(tokencount==1)
 			{
 			  	var=atoi(s1);
@@ -173,222 +289,33 @@ int main()
 		i=searchMOT(s1);
 		if(i==-1)
 		  {
-			printf("\nError at line %d :%s\n",cnt,label);
+			printf("\nError at line %d :%s\n",ln,label);
 			continue;
 		  }
 		switch (MOT[i].Class)
 		   {
-			case 1:	imperative();
+			case 1:	//imperative();
 				break;
 			case 2: declaration();
 				break;
 			case 3: directive();
 				break;
-			default: printf("\nError at line %d :%s\n",cnt,label);
+			default: printf("\nError at line %d :%s\n",ln,label);
 				continue;		
 		   }
 	  }
   print_symbol();
+  printf("\n-----------------------------------------------------------\n");
+
   print_opcode();
-  intermediate();
+  
+  printf("\n-----------------------------------------------------------\n");
+
   return 0;
  }
 
-void imperative()
-  {
-    int index;
-    index=searchMOT(s1);
-    IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0;	 //intialize
-    IC[iIC].LC=LC;
-    IC[iIC].Code1=index;
-    IC[iIC].Type1=MOT[index].Class;
-  
-    if(tokencount>1)
-    {
-		index=searchMOT(s2);
-		if(index != -1)
-	   {
-		IC[iIC].Code2=index;
-		IC[iIC].Type2=MOT[index].Class;
-	   }
-	   else if(index == -1)
-	   {
-	   	  printf("Error at line %d: %s\n",cnt,s2);
-	   }
-		else
-	   {   //It is a variable
-	       index=searchST(s2);
-	       if(index==-1)
-		    index=insertST(s2,0,0);
-		IC[iIC].Code2=index;
-		IC[iIC].Type2=7;	 //VALUE 7 IS FOR VARIABLES
-	   }
-    }
-      if(tokencount>3)
-	   {
-      		index=searchST(label);
-      		if(index!=-1)
-      		{
-      			ST[index].Address=LC;
-			ST[index].Size=1;
-      		}      	   
-}
-        LC=LC+1;
-   	iIC++;
-}
-
-void declaration()
-{
-   if(strcmp(s1,"DC")==0)
-     {
-		DC();
-		return;
-     }
-   if(strcmp(s1,"DS")==0)
-		DS();
-}
-
-void directive()
-{
-   	 if(strcmp(s1,"START")==0)
-       	{
-	  	START();
-	  	return;
-      	 }
-   	 if(strcmp(s1,"EQU")==0)
-    	{
-	 	EQU();
-	  return;
-	 }
-	 if(strcmp(s1,"ORIGIN")==0)
-	 	ORIGIN();
-
-}
-
-void ORIGIN()
-{
-	char *p=NULL;
-	int add,index;	
-	index=searchMOT(s1);
-    	IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0;	 //intialize
-    	IC[iIC].LC=LC;
-    	IC[iIC].Code1=index;
-    	IC[iIC].Type1=MOT[index].Class;
-	p=strtok(s2,"+");
-	index=searchST(p);
-	add=ST[index].Address;
-	 LC=add+atoi(s3);
-	iIC++;	
-}
-void EQU()
-{
-	int i1,i2,add, index;
-  	index=searchMOT(s1);
-	IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0; 		//intialize
-	 IC[iIC].LC=LC;
-  	IC[iIC].Code1=index;
-  	IC[iIC].Type1=MOT[index].Class;
-	i1=searchST(s2);
-	IC[iIC].Code2=i1;
-	IC[iIC].Type2=7; 		//VALUE 7 IS FOR VARIABLES
-	add=ST[i1].Address;
-	i2=searchST(label);
-	ST[i2].Address=add;
-	iIC++;
-	LC=LC+1;
-}
-void DC()
-{
-	int index;
-	index=searchMOT(s1);
-	IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0;	 //intialize
-	IC[iIC].LC=LC;
-	IC[iIC].Code1=index;
-	IC[iIC].Type1=MOT[index].Class;
-	IC[iIC].Type2=6;        		//6 IS TYPE FOR CONSTANTS
-	IC[iIC].Code2=atoi(s2);
-	index=searchST(label);
-	if(index==-1)
-		index=insertST(label,0,0);
-	ST[index].Address=LC;
-	ST[index].Size=1;
-	LC=LC+1;
-	iIC++;
-}
-void DS()
-{
-	int index;
-	index=searchMOT(s1);
-	IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0;	 //intialize
-	IC[iIC].LC=LC;
-	IC[iIC].Code1=index;
-	IC[iIC].Type1=MOT[index].Class;
-	IC[iIC].Type2=6;       	 //6 IS TYPE FOR CONSTANTS
-	IC[iIC].Code2=atoi(s2);
-	index=searchST(label);
-	if(index==-1)
-		index=insertST(label,0,0);
-	ST[index].Address=LC;
-	ST[index].Size=atoi(s2);
-	LC=LC+atoi(s2);
-	iIC++;
-}
 
 
-void START()
-{
-  int index;
-  index=searchMOT(s1);
-  IC[iIC].Type1=IC[iIC].Type2=IC[iIC].Type3=0; 		//intialize
-  IC[iIC].LC=LC;
-  IC[iIC].Code1=index;
-  IC[iIC].Type1=MOT[index].Class;
-  IC[iIC].Type2=6;       		 //6 IS TYPE FOR CONSTANTS
-  IC[iIC].Code2=atoi(s2);
-  LC=atoi(s2);
-  iIC++;
-}
-
-void intermediate()
-{ 	
-	int i;
-	char decode[9][3]={" ","IS","DL","AD","RG","CC","C","S","L"};
-	printf("\n\nIntermediate Code :");
-	for(i=0;i<iIC;i++)
-	 {
-		printf("\n%3d)   (%s,%2s)",IC[i].LC,decode[IC[i].Type1]
-				    ,MOT[IC[i].Code1].Opcode);
-		if(IC[i].Type2!=0)
-		   {
-		      if(IC[i].Type2<6)
-				printf(" (%s,%2s)",decode[IC[i].Type2]
-						  ,MOT[IC[i].Code2].Opcode);
-		      else
-			       printf("  (%s,%2d)",decode[IC[i].Type2]
-						  ,IC[i].Code2);
-		   }
-		if(IC[i].Type3!=0)
-			       printf("  (%s,%2d)",decode[IC[i].Type3]
-						  ,IC[i].Code3);
-	  }
-}
-void print_symbol()
- {
-	int i;
-	printf("\n--------------SYMBOL TABLE--------------\n");
-	for(i=0;i<iST;i++)
-		printf("\n%10s  %3d  ",ST[i].Symbol,ST[i].Address);
-}
-
-void print_opcode()
-  {
-	int i;
-	printf("\n------------OPCODE TABLE------------");
-	for(i=0;i<nMOT;i++)
-		if(MOT[i].Class==1)
-		       printf("\n%6s   %2s",MOT[i].Mnemonic,MOT[i].Opcode);
-
-  }
 
 
 
