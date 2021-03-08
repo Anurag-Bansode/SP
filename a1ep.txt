@@ -1,0 +1,16 @@
+    START    200
+    MOVER    AREG,='5'
+    MOVE    AREG,A
+LOOP    MOVER    AREG,A
+    MOVER    CREG,B
+    AD    CREG,='1'
+
+NEXT1    SUB    AREG,='1'
+    ORIGI    LOOP+6
+    MULT    CREG,B
+A    DS    2
+B    DC    3
+NEXT2    EQU    LOOP
+    END
+
+
